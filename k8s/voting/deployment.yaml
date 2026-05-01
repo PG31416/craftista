@@ -14,6 +14,7 @@ spec:
     spec:
       containers:
         - name: voting-container
-          image: pritam314/voting:v2
+          # Change the image with your image name in dockerhub repo
+          image: voting:latest
           ports:
             - containerPort: 8080
