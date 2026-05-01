@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: recommendation-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: recommendation-app
+  template:
+    metadata:
+      labels:
+        app: recommendation-app
+    spec:
+      containers:
+        - name: recommendation-container
+          image: pritam314/recommendation:v1
+          ports:
+            - containerPort: 8080
