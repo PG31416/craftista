@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: voting-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: voting-app
+  template:
+    metadata:
+      labels:
+        app: voting-app
+    spec:
+      containers:
+        - name: voting-container
+          image: pritam314/voting:v2
+          ports:
+            - containerPort: 8080
