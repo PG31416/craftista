@@ -42,11 +42,11 @@ A polyglot microservices application deployed on AWS EKS using Terraform, Helm, 
 
 | Service | Language | Image | Port | Path |
 |---|---|---|---|---|
-| Frontend | Node.js / Express | `pritam314/frontend:v4` | 3000 | `/` |
-| Catalogue | Python / Flask | `pritam314/catalogue:v5` | 5000 | `/api/products` |
+| Frontend | Node.js / Express | `<docker_hub_repository>:<version>` | 3000 | `/` |
+| Catalogue | Python / Flask | `<docker_hub_repository>:<version>` | 5000 | `/api/products` |
 | Catalogue DB | PostgreSQL 15 | `postgres:15` | 5432 | internal |
-| Voting | Java / Spring Boot | `pritam314/voting:v1` | 8080 | `/api/vote` |
-| Recommendation | Golang / Gin | `pritam314/recommendation:v1` | 8080 | `/api/origami-of-the-day` |
+| Voting | Java / Spring Boot | `<docker_hub_repository>:<version>` | 8080 | `/api/vote` |
+| Recommendation | Golang / Gin | `<docker_hub_repository>:<version>` | 8080 | `/api/origami-of-the-day` |
 
 ### Infrastructure
 
@@ -82,7 +82,7 @@ Make sure the following tools are installed and configured before proceeding.
 aws configure
 # AWS Access Key ID: <your-key>
 # AWS Secret Access Key: <your-secret>
-# Default region: ap-south-1
+# AWS region: <region> 
 # Default output format: json
 ```
 
@@ -133,7 +133,7 @@ terraform apply
 After `terraform apply` completes, configure kubectl to talk to your new cluster:
 
 ```bash
-aws eks update-kubeconfig --name os_app --region ap-south-1
+aws eks update-kubeconfig --name <cluster_name> --region <region>
 
 # Verify nodes are ready
 kubectl get nodes
@@ -166,7 +166,7 @@ helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
   --set serviceAccount.create=true \
   --set serviceAccount.name=aws-load-balancer-controller \
   --set "serviceAccount.annotations.eks\.amazonaws\.com/role-arn=<lbc_role_arn>" \
-  --set region=ap-south-1 \
+  --set region=<region> \
   --set vpcId=<vpc_id>
 
 # Verify — should show 2 pods Running
