@@ -1,200 +1,407 @@
-
 # Craftista — Origami Store DevOps Project
 
-A polyglot microservices application deployed on AWS EKS using Terraform, Helm, and monitored with Prometheus and Grafana. Based on the School of Devops Origami Store.
-## Demo Repository (If you just want to launch the app in 5 mins and play with it)
-This project repo  is for builders who want to learn Devops by building projects from scratch. If you are looking for just launching this app in less than 5 minutes and playing around with it, head over to [Craftista Demo](https://github.com/craftista/craftista-demo) instead. 
-
-
-## What is Craftista: Celebrating the Art of Origami 
-
-Welcome to Craftista, a unique web platform dedicated to the beautiful and intricate world of origami. Craftista is a place where origami enthusiasts and artists come together to showcase their creations, share their passion, and engage with a like-minded community. Our platform allows users to explore a diverse range of origami art, vote for their favorites, and get inspired by the daily featured origami.
-
-![Simple Design](docs/stage4-02.png)
-
-### Features
-
-**Origami Showcase**: 
-
-Discover a wide array of origami creations, ranging from traditional designs to contemporary art pieces. Each origami has its own story and charm, waiting to be unfolded.
-
-**User Voting System**: 
-
-Participate in the community by voting for your favorite origami pieces. See what creations are trending and show your support for the artists.
-Daily Origami Recommendation: Be greeted daily with a new origami masterpiece, handpicked to inspire and ignite your passion for paper folding.
-
-**Origami of the Day**: 
-
-Learn more about origami artists, their work, and their journey into the world of paper art.
+A polyglot microservices application deployed on AWS EKS using Terraform, Helm, and monitored with Prometheus and Grafana. Based on the [School of Devops](https://github.com/craftista/craftista) Origami Store.
 
 ---
 
+## Architecture
 
-## The Architecture 
+```
+                        ┌─────────────────────────────────────────┐
+                        │              AWS (ap-south-1)           │
+                        │                                         │
+                        │   ┌──────────────────────────────────┐  │
+                        │   │         VPC (10.0.0.0/16)        │  │
+                        │   │                                  │  │
+                        │   │  Public Subnets                  │  │
+                        │   │  ┌────────────────────────────┐  │  │
+                        │   │  │  AWS Application Load      │  │  │
+                        │   │  │  Balancer (ALB)            │  │  │
+                        │   │  └────────────┬───────────────┘  │  │
+                        │   │               │                  │  │
+                        │   │  Private Subnets (EKS Nodes)     │  │
+                        │   │  ┌────────────▼───────────────┐  │  │
+                        │   │  │     EKS Cluster (os_app)   │  │  │
+                        │   │  │                            │  │  │
+                        │   │  │  default namespace         │  │  │
+                        │   │  │  ├─ frontend (Node.js)     │  │  │
+                        │   │  │  ├─ catalogue (Flask)      │  │  │
+                        │   │  │  ├─ catalogue-db (Postgres)│  │  │
+                        │   │  │  ├─ voting (Spring Boot)   │  │  │
+                        │   │  │  └─ recco (Golang/Gin)     │  │  │
+                        │   │  │                            │  │  │
+                        │   │  │  monitoring namespace      │  │  │
+                        │   │  │  ├─ Prometheus             │  │  │
+                        │   │  │  └─ Grafana                │  │  │
+                        │   │  └────────────────────────────┘  │  │
+                        │   └──────────────────────────────────┘  │
+                        └─────────────────────────────────────────┘
+```
 
-Craftista is not just an origami platform; it's a demonstration of modern web application development and microservices architecture. It leverages multiple backend services, including:
+### Microservices
 
-![Craftista Architevture](docs/Craftista-Architecture-SchoolofDevops-CC-BY-NC-SA4.0.jpg "Craftista Architecture")
+| Service | Language | Image | Port | Path |
+|---|---|---|---|---|
+| Frontend | Node.js / Express | `pritam314/frontend:v4` | 3000 | `/` |
+| Catalogue | Python / Flask | `pritam314/catalogue:v5` | 5000 | `/api/products` |
+| Catalogue DB | PostgreSQL 15 | `postgres:15` | 5432 | internal |
+| Voting | Java / Spring Boot | `pritam314/voting:v1` | 8080 | `/api/vote` |
+| Recommendation | Golang / Gin | `pritam314/recommendation:v1` | 8080 | `/api/origami-of-the-day` |
 
-### Micro Service 01 - Frontend
+### Infrastructure
 
-**Purpose**: 
-Serves as the frontend, acts as a router, integrates with all other services renders the  Graphical Interface.  
-
-**Language**: Node.js  
-
-**Framework**: Express.js  
-
-**Why Express.js**: 
-Express.js is a widely adopted and highly versatile web application framework for Node.js, offering several compelling reasons for its use. Its simplicity and minimalistic design make it an excellent choice for both beginners and experienced developers. Express.js provides a robust set of features and middleware, enabling rapid development of web applications and APIs. It excels at handling routes, HTTP requests, and various response types, allowing developers to build scalable and efficient server-side applications. Additionally, its active community and extensive ecosystem of plugins and modules make it easy to integrate with databases, authentication systems, and other technologies, streamlining the development process. Express.js's performance and flexibility, combined with its supportive community, make it a go-to choice for building web applications and APIs in Node.js.  
-
-**Who uses Express.js:** 
-Uber, Netflix, PayPal, LinkedIn, Groupon, Mozilla, Trello, Stack Overflow, GitHub, Myntra, Zomato,Trivago  
-
-
-### Micro Service 02 - Catalogue
-
-**Purpose:** 
-Manages the origami showcase, including origami details and images.  
-
-**Language:** Python  
-
-**Framework:** Flask  
-
-**Why Flask:** 
-Flask is a lightweight and highly flexible Python web framework, making it an attractive choice for web developers. Its simplicity and minimalist design offer a low learning curve, making it ideal for small to medium-sized projects or when you need to quickly prototype an idea. Flask allows developers the freedom to choose components and libraries, giving them control over the tech stack and allowing for greater customization. It's well-suited for building RESTful APIs and web applications due to its clean and intuitive routing system. Flask also benefits from a supportive community and extensive documentation, ensuring developers have access to valuable resources when facing challenges. Overall, Flask's simplicity, flexibility, and ease of use make it a compelling choice for Python developers looking to build web applications and APIs efficiently and with a high degree of control.  
-
-**Who uses Flask:** 
-Netflix, Reddit, Lyft, Airbnb, Pinterest, Twilio, LinkedIn, MIT, Uber, Dropbox, Whitehouse.gov, Coursera  
-
-#### Backing Service 01: catalogue-db  
-Phase 1 : JSON File  
-Phase 2 : MongoDB  
-
-###  Micro Service 03 - Voting
-
-**Purpose:** 
-Handles the voting functionality, allowing users to vote for their favorite origami.  
-**Framework:** Spring Boot   
-**Why Spring Boot Framework:**
-Spring Boot is a powerful and widely adopted Java-based framework that offers numerous advantages for developers. It excels in simplifying the development of production-ready, stand-alone, and enterprise-grade applications. One of its key strengths is convention over configuration, which significantly reduces boilerplate code and allows developers to focus on building features rather than dealing with infrastructure concerns. Spring Boot's comprehensive ecosystem provides support for various modules like data access, security, and messaging, simplifying integration with databases and third-party services. It also includes embedded servers, making it easy to deploy applications without the need for external web servers. Moreover, Spring Boot benefits from a vast and active community, ensuring access to extensive documentation and a wealth of resources. Overall, Spring Boot is a go-to choice for Java developers seeking rapid application development, maintainability, and scalability for a wide range of projects, from microservices to monolithic applications.  
-**Who uses Spring Boot:**  
-Adobe, Microsoft, Yelp, American Express, Intuit, Vimeo, SoundCloud  
-
-#### Backing Service 02 : voting-db
-Phase 1 : H2  
-Phase 2 : PostgreSQL  
-
-
-###  Micro Service 04 - Recommendation 
-
-**Purpose:** 
-Selects and presents the daily origami recommendation.    
-**Language:** Golang  
-**Why Golang:** 
-Go, also known as Golang, is a programming language developed by Google. It has gained popularity for its simplicity, performance, and suitability for building scalable and concurrent applications. It's also a compiled language, which makes it more efficient than other languages.Many companies and projects around the world use Go in their tech stack. Golang's performance and flexibility make it a compelling choice for developers looking to build robust and reliable applications. Many DevOps tools are written in Go to take advantage of these benefits.  
-**DevOps tools written in Go:**: 
-Docker, Kubernetes, Prometheus, Terraform, Consul, Nomad, Packer, Vault, Grafana, etcd, Istio   
-**Who uses Go Lang:** 
-Google, Dropbox, Uber, Netflix, Twitch, Cloudflare, Heroku, X (Twitter), BBC  
-
-
-Each service is built using a different technology stack, showcasing polyglot persistence and diverse backend technologies.
+| Component | Detail |
+|---|---|
+| EKS Version | 1.32 |
+| Node Group | 2× t3.medium SPOT instances |
+| Networking | VPC with 2 public + 2 private subnets, NAT Gateway |
+| Storage | EBS gp3 via EBS CSI driver |
+| Ingress | AWS Load Balancer Controller (ALB) |
+| State Backend | S3 + DynamoDB lock table |
+| Region | ap-south-1 |
 
 ---
 
-## Why Craftista is the Perfect Learning App ?
+## Prerequisites
 
-### 01 - Real Life Like - Micro Services, Polyglot App: 
-Craftista is not your typical hello world app or off the shelf wordpress app used in most devops trainings. It is a real deal. If you look at the architecture and the services of Craftista App, it resembles a real life use case. It's a polyglot microservices based application, with multiple backend services, each with its own technology stack. You can think of it as a simplified version of a E-Commerce platform as it has the essential services such as a Modern UI written in Node.Js, a Product Catalogue Service, a Recommendation Engine and even a User Review App (Voting Service). When you are working with Craftista, it is as good as building a Real Life Project. 
+Make sure the following tools are installed and configured before proceeding.
 
+### Required Tools
 
-### 02 - Modern Tech Stack:
-We have made deliberate efforts to choose the technologies commonly used by organisations across the globe to build modern applications which technology choice such as  Express.js Framework based off Node.js, Golang, Python Flask Framework and Java Based Spring Boot Framework. 
+| Tool | Version | Install |
+|---|---|---|
+| AWS CLI | v2 | [docs.aws.amazon.com](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2.html) |
+| Terraform | >= 1.3 | [terraform.io](https://developer.hashicorp.com/terraform/downloads) |
+| kubectl | >= 1.28 | [kubernetes.io](https://kubernetes.io/docs/tasks/tools/) |
+| Helm | >= 3.12 | [helm.sh](https://helm.sh/docs/intro/install/) |
+| eksctl (optional) | latest | [eksctl.io](https://eksctl.io/) |
 
-### 03 - Simplified Design:
-We have deliberately kept the design simple by removing a lot of additional services such as Shopping Carts, User Management, Payments Processing, Order Management to keep the scope of the project manageable. You will not get lost into the complexity of the architecture and get overwhelmed by the magnitute of services to work with. Yet it is still sophisticated enough for you to get a taste of a Real World Project. 
-![Simple Design](docs/stage4.png)
+### AWS Configuration
 
+```bash
+aws configure
+# AWS Access Key ID: <your-key>
+# AWS Secret Access Key: <your-secret>
+# Default region: ap-south-1
+# Default output format: json
+```
 
-### 04 - Iterative, Expandable and Resilient:
-One of the reasons why this is a perfect learning app is at no point in time you would feel that its not good enough. Unlike a Real World app, which needs many different servies, database backends to be configured in order to have the MVP working,  You deploy one service with Craftista, you have a working UI Framework, without any backend services or databases being involved. And when you deploy additional services iteratively, the page keeps on getting richer, making it a perfect sample app to work with. 
-
-![4 Stages of Deployment](docs/4stages.png)
-
-### 05 - Displays Useful System Info:
-While building Devops Projects, you are going to deploy this app in containers, take it to kubernetes, scale it and put it behind load balancers. When that happens, how do you get the feedback on if its running within a container or not? Wouldn't it be nicer to find out if its running within a Kubernetes Cluster or not ? How do you validate the Load Balancer is working (should show differnt hostnames/ips every time you refresh). Thats where we have added the Sytems Info section which shows you all this relevant data.  
-
-
-![System Info](docs/sysinfo.png)
-
-### 06 - Ability to Show the Version:
-While learning about Application Deployment and Release Engineeing, its important to visually see the versions of the apps being updated. In the real world application, its mostly about checking if the individual  new features have been deployed or not to see the changes. With our Sample App, everything is visible on the UI. To roll out a new version, all you need to do is bump up the version string, and trigger that rollout. Convenient, isn't it ? 
-
-![App Version](docs/version.png "App Version")
-
-### 07 - Backend Service Status Dashboard:
-No real world application shows the status of all the backend services on the frontend UI dashboard. Sure, they may have very sophisticated monitoring consoles with status dashboards built into it. However, when you are trying to learn about Devops, you neither have the team to do that work for you, nor have immediate resources to do it. In most cases, when you are getting started building skills, you may not have gotten to the monitoring setup yet. Our Backend Services Status dashboard, which is displayed right on the main UI, does a fantastic job to understand which services are available, and which are not. And its a great visual aid while you are learning and implementing technologies in iteration. Thats Perfect, I Say !  
-
-![Service Status](docs/servicestatus.png "Service Status")
-
-### 08 - Incorporates Unit Tests  & Integration Tests:
-If you pick the Sample App, most of those are created by the developers to learn a new language and are mostly of type "Hello World !". When you are learning about devops technologies and specially building Continuous Integration Pipelines, its all about setting up that automated process to provide continuous feedback. How this feedback is generated ? Well, a major component of that is test cases.  And with shift-left philosophy, it started with Unit Tests, and then Integration Tests and then you could keep on adding additional test scenarios. To help you setup real life like project, we have added the real unit tests as part of each of the micro services code. Look at the example below, which shows the unit tests for the Product Catalogue Service written in Python. Now, Ain't that real ? 
-
-![Unit Tests](docs/unit_tests.png)
-
-### 09 Every Service with UI (including APIs):
-While learning devops, its not the **real life** project that you need, its more like **real life like** one which would make it a perfect learning app. Why? Because, most of the backend APIs in real life do not provide you with the UI. You have to look at the API documentation, and start making calls acordingly even to check whether that service is available or not. Not our Perfect Learning App. With Craftista, we have built UI with even the API services. Look at an example here, which shows the Product Catalogue Service with its API. Yes ! Our experience of teaching thousands of professionals from the top companies of the world is real :) 
-
-![API Service](docs/api.png)
-
-### 10 - Mono Repo Structure:
-While there are different school of thoughts while maintaining the code base, we have decided to follow the monorepo structure. This is a very popular approach in the devops community. It has many benefits, such as, easier to maintain, easier to understand, and easier to scale. And the main reason why we have chosen it is its a slight bit trickier while working with Mono Repos to setup CI/CD Pipelines, to organise your devops your code etc. If you have done it with mono, you would find it breeze to adopt to multi repo structure anyways. 
-
-![Mono Repo](docs/monorepo.png)
+Ensure your IAM user/role has permissions for:
+- EKS (create/manage clusters)
+- EC2 (VPC, subnets, security groups, instances)
+- IAM (create roles and policies for IRSA)
+- S3 and DynamoDB (Terraform state)
+- Elastic Load Balancing
 
 ---
 
-## For Developers and DevOps Enthusiasts
-Craftista serves as a perfect sandbox for developers and DevOps practitioners. The microservices architecture of the application makes it an ideal candidate for experimenting with containerization, orchestration, CI/CD pipelines, and cloud-native technologies. It's designed to be a hands-on project for learning and implementing DevOps best practices.
+## 1. Infrastructure — Terraform
+
+All infrastructure is defined in Terraform and lives in a **separate directory** from the Kubernetes manifests.
+
+### Module Structure
+
+```
+terraform/
+├── main.tf           # Wires all modules together
+├── outputs.tf        # Exposes lbc_role_arn, vpc_id etc.
+├── variables.tf
+└── modules/
+    ├── vpc/          # VPC, subnets, NAT Gateway
+    ├── eks/          # EKS cluster, node group, OIDC provider
+    ├── alb/          # AWS Load Balancer Controller IAM role
+    └── backend/      # S3 bucket + DynamoDB for Terraform state
+```
+
+### Deploy Infrastructure
+
+```bash
+cd terraform
+
+# Initialise — downloads providers and sets up remote state
+terraform init
+
+# Preview what will be created
+terraform plan
+
+# Apply — takes ~15 minutes for EKS to provision
+terraform apply
+```
+
+### Update kubeconfig
+
+After `terraform apply` completes, configure kubectl to talk to your new cluster:
+
+```bash
+aws eks update-kubeconfig --name os_app --region ap-south-1
+
+# Verify nodes are ready
+kubectl get nodes
+```
+
+You should see 2 nodes in `Ready` status before proceeding.
+
+### Key Terraform Outputs
+
+```bash
+terraform output lbc_role_arn   # Needed for Load Balancer Controller
+terraform output vpc_id          # Needed for Load Balancer Controller
+```
 
 ---
-## 15 Project Ides to build using this Application Repo 
 
-Here are 10 basic projects you could build with it that would make you a Real Devops Engineer
-  1.  Containerize with Docker: Write Dockerfiles for each of the services, and a docker compose to run it as a micro services application stack to automate dev environments.  
-  2.  Build CI Pipeline : Build a complete CI Pipeline using Jenkins, GitHub Actions, Azure Devops etc.  
-  3.  Deploy to Kubernetes : Write kubernetes manifests to create Deployments, Services, PVCs, ConfigMaps, Statefulsets and more  
-  4.  Package with Helm : Write helm charts to templatize the kubernetes manifests and prepare to deploy in different environments  
-  5.  Blue/Green and Canary Releases with ArgoCD/GitOps: Setup releases strategies with Argo Rollouts Combined with ArgoCD and integrate with CI Pipeline created in 3. to setup a complete CI/CD workflow.  
-  6.  Setup Observability : Setup monitoring with Prometheus and Grafana (Integrate this for automated CD with rollbacks using Argo), Setup log management with ELS/EFK Stack or Splunk.
-  7.  Build a DevSecOps Pipeline: Create a DevSecOps Pipeline by adding SCA, SAST, Image Scanning, DAST, Compliance Scans, Kubernetes Scans etc. and more at each stage.
-  8.  Design and Build Cloud Infra : Build Scalable, Hight Available, Resilience, Fault Tolerance Cloud Infra to host this app.
-  9.  Write Terraform Templating : Automate the infra designed in project 8. Use Terragrunt on top for multi environment configurations.  
-  10.  Python Scripts for Automation : Automate ad-hoc tasks using python scripts.
+## 2. AWS Load Balancer Controller
 
-and if you want to take it to the next level here are 5 Advanced Projects:
+The AWS Load Balancer Controller must be installed **before** deploying the app, as it provisions the ALB for the Ingress resource.
 
-  1. Deploy on EKS/AKS: Build EKS/AKS Cluster and deploy this app with helm packages you created earlier.
-  2. Implement Service Mesh: Setup advanced observability, traffic management and shaping, mutual TLS, client retries and more with Istio.
-  3. AIOps: On top of Observability, incorporate Machine Learning models, Falco and Argo Workflow for automated monitoring, incident response and mitigation.
-  4. SRE: Implement SLIs, SLOs, SLAs on top of the project 6 and setup Site Reliability Engineering practices.  
-  5. Chaos Engineering : Use LitmusChaos to test resilience of your infra built on Cloud with Kubernetes and Istio.
+```bash
+# Add the EKS Helm chart repo
+helm repo add eks https://aws.github.io/eks-charts
+helm repo update
 
-## Contributing
-While we have attempted to make it a Perfect Learning App, and have got many things right, its still a work in progress. As we see more useful features from the perspective of learning Devops, we will continue to improve upon this work. We welcome contributions from the community! Whether you're an origami artist wanting to showcase your work, a developer interested in microservices, or just someone enthusiastic about the devops learning projects, your contributions are valuable. Check out our contributing guidelines(to be added) for more information. While we are writing the guidelines, feel free send us a pull request when you have something interesting to add.  
+# Install the controller — replace <lbc_role_arn> and <vpc_id> with terraform outputs
+helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
+  -n kube-system \
+  --set clusterName=os_app \
+  --set serviceAccount.create=true \
+  --set serviceAccount.name=aws-load-balancer-controller \
+  --set "serviceAccount.annotations.eks\.amazonaws\.com/role-arn=<lbc_role_arn>" \
+  --set region=ap-south-1 \
+  --set vpcId=<vpc_id>
 
-## Attribution
-This project is released under the Apache 2.0 License. If you use, modify, or distribute this project, you must retain the original license and give proper credit to the authors. Please include a reference to the original repository and authors: [[GitHub Repository URL](https://github.com/craftista)].
+# Verify — should show 2 pods Running
+kubectl get pods -n kube-system | grep load-balancer
+```
 
-## License
-Craftista is open-sourced under the Apache License 2.0.
+---
 
-## How to Get started with Devops Mastery ? 
-While you could take this application code to design and build devops projects yourself, you may benefit by going through a holistic, structured program which combines Courses and Labs with Projects, AI Strategies, Community, Coaching and Certification Prep. Thats what [Devops Mastery System](https://schoolofdevops.com/#why) created by Gourav Shah, Founder at [School of Devops](https://schoolofdevops.com/) is all about. Gourav is a leading Corporate Trainer on Devops, has conducted 450+ workshops for Top companies of the world, has been a course creator with Linux Foundation, is published on eDX and has tailor built this learning app himself. Get started with your journey to upScale your Career and experience the AI Assisted, Project Centric Devops Mastery System and by enrolling into our [Starter Kit](https://schoolofdevops.com/#starterkit). 
+## 3. Application — Helm
 
+The application is packaged as an umbrella Helm chart with a subchart per microservice.
 
+### Chart Structure
 
+```
+helm/
+├── Chart.yaml              # Umbrella chart — declares subchart dependencies
+├── values.yaml             # Top-level values — override anything here
+├── .helmignore
+├── templates/
+│   ├── ingress.yaml        # ALB Ingress routing all services
+│   └── storageclass.yaml   # gp3 EBS StorageClass
+└── charts/
+    ├── frontend/            # Deployment + Service + ConfigMap
+    ├── catalogue/           # Deployment + Service + StatefulSet + Secret + Job
+    ├── voting/              # Deployment + Service
+    └── recommendation/      # Deployment + Service
+```
 
+### Configuration
 
+Key values in `helm/values.yaml`:
 
+```yaml
+catalogue:
+  db:
+    password: "catalogue"   # Override this — never commit the real password
+
+ingress:
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/group.name: craftista  # Groups app + monitoring ALBs
+```
+
+### Deploy the Application
+
+```bash
+cd helm
+
+# Install — pass DB password via --set, never hardcode in values.yaml
+helm install craftista . --set catalogue.db.password=<your-password>
+
+# Watch pods come up
+kubectl get pods -w
+```
+
+All pods should reach `1/1 Running` within 3-5 minutes. The catalogue-db pod initialises an EBS volume on first run which takes slightly longer.
+
+### Verify
+
+```bash
+# Get the ALB address (takes 2-3 minutes to provision)
+kubectl get ingress craftista-ingress
+
+# Test the catalogue API
+curl http://<ALB-ADDRESS>/api/products
+
+# Test the voting API
+curl http://<ALB-ADDRESS>/api/vote
+
+# Test the recommendation API
+curl http://<ALB-ADDRESS>/api/origami-of-the-day
+```
+
+### Upgrading
+
+When you make changes to values or templates:
+
+```bash
+helm upgrade craftista . --set catalogue.db.password=<your-password>
+```
+
+Helm performs a rolling update — only changed resources are restarted.
+
+### Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| `ImagePullBackOff` | Check image repo/tag in `values.yaml` — verify image exists on Docker Hub |
+| PVC stuck `Pending` | Ensure gp3 StorageClass exists: `kubectl get sc` |
+| ALB address not populating | Verify LBC is running: `kubectl get pods -n kube-system \| grep load-balancer` |
+| `Request entity too large` | Helm chart is picking up non-chart files — ensure you run `helm` from inside the `helm/` directory |
+
+---
+
+## 4. Monitoring — Prometheus & Grafana
+
+Prometheus and Grafana are installed via the `kube-prometheus-stack` Helm chart into a dedicated `monitoring` namespace.
+
+### Install
+
+```bash
+# Add the Prometheus community Helm repo
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+
+# Install kube-prometheus-stack
+helm install prometheus prometheus-community/kube-prometheus-stack \
+  --namespace monitoring \
+  --create-namespace \
+  --set grafana.service.type=ClusterIP
+
+# Verify all pods are running (~2 minutes)
+kubectl get pods -n monitoring
+```
+
+### Expose Grafana via ALB
+
+Grafana is exposed on the same ALB as the application using ALB Ingress Groups.
+
+```bash
+# Apply the Grafana ingress into the monitoring namespace
+kubectl apply -f helm/monitoring/grafana-ingress.yaml
+
+# Set group order so /grafana path takes priority over the app's catch-all /
+kubectl annotate ingress grafana-ingress -n monitoring \
+  "alb.ingress.kubernetes.io/group.order=1" --overwrite
+
+kubectl annotate ingress craftista-ingress \
+  "alb.ingress.kubernetes.io/group.order=10" --overwrite
+
+# Configure Grafana to serve from /grafana subpath
+helm upgrade prometheus prometheus-community/kube-prometheus-stack \
+  --namespace monitoring \
+  --reuse-values \
+  --set "grafana.grafana\.ini.server.root_url=http://<ALB-ADDRESS>/grafana" \
+  --set "grafana.grafana\.ini.server.serve_from_sub_path=true"
+```
+
+### Access Grafana
+
+```
+URL:      http://<ALB-ADDRESS>/grafana
+Username: admin
+Password: kubectl get secret -n monitoring prometheus-grafana \
+            -o jsonpath="{.data.admin-password}" | base64 -d
+```
+
+### Import the Craftista Dashboard
+
+1. In Grafana go to **Dashboards → Import**
+2. Upload `helm/monitoring/craftista-dashboard.json`
+3. Select **Prometheus** as the datasource
+4. Click **Import**
+
+The dashboard includes:
+- Node CPU & Memory usage
+- Pod CPU & Memory per microservice
+- HTTP request rates and latency
+- PostgreSQL catalogue DB metrics
+
+---
+
+## 5. Destroy
+
+Run this at the end of every session to avoid unnecessary AWS costs.
+
+```bash
+# 1. Remove the Grafana ingress
+kubectl delete ingress grafana-ingress -n monitoring
+
+# 2. Uninstall Helm releases
+helm uninstall craftista
+helm uninstall prometheus -n monitoring
+
+# 3. Delete the PostgreSQL PVC (EBS volume)
+kubectl delete pvc postgres-storage-catalogue-db-0
+
+# 4. Wait for ALB to deregister targets (~60 seconds)
+sleep 60
+
+# 5. Destroy all AWS infrastructure
+cd terraform
+terraform destroy
+```
+
+> **Important:** Always delete the Helm releases and PVC **before** running `terraform destroy`. If the ALB or EBS volume still exists when Terraform tries to delete the VPC, the destroy will fail with dependency errors.
+
+---
+
+## Key Design Decisions
+
+### Why an Umbrella Helm Chart?
+A single `helm install` deploys all four microservices, the database, storage class, and ingress in one operation. Subchart values can be overridden from the top-level `values.yaml` making environment-specific configuration straightforward.
+
+### Why ALB Ingress Groups?
+The application and Grafana live in different Kubernetes namespaces (`default` and `monitoring`). ALB Ingress Groups allow both Ingress resources to share a single ALB, avoiding the cost and complexity of provisioning a second load balancer.
+
+### Why gp3 StorageClass with WaitForFirstConsumer?
+EBS volumes are AZ-specific. `WaitForFirstConsumer` binding mode ensures the PVC is provisioned in the same AZ as the pod that claims it, preventing scheduling failures due to AZ affinity conflicts.
+
+### PGDATA Subdirectory
+PostgreSQL crashes on startup if its data directory contains files it doesn't recognise (like the `lost+found` directory EBS volumes initialise with). Setting `PGDATA=/var/lib/postgresql/data/pgdata` points Postgres at a clean subdirectory, avoiding this issue.
+
+---
+
+## Repository Structure
+
+```
+craftista/
+├── helm/                    # Helm umbrella chart
+│   ├── Chart.yaml
+│   ├── values.yaml
+│   ├── .helmignore
+│   ├── templates/
+│   │   ├── ingress.yaml
+│   │   └── storageclass.yaml
+│   ├── monitoring/
+│   │   ├── grafana-ingress.yaml
+│   │   └── craftista-dashboard.json
+│   └── charts/
+│       ├── frontend/
+│       ├── catalogue/
+│       ├── voting/
+│       └── recommendation/
+├── k8s/                     # Raw Kubernetes manifests (reference)
+├── terraform/               # AWS infrastructure
+├── docs/
+└── README.md
+```
+
+---
+
+## Credits
+
+- Original application: [craftista/craftista](https://github.com/craftista/craftista) by School of Devops
+- License: Apache 2.0
